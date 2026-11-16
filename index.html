@@ -6,6 +6,11 @@
 <title>単語レイド 試作</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+<!-- 公開版（GitHub Pages など）用：設定・アクセス解析・Firebase通信。claude.ai 上では読み込めなくても問題ありません -->
+<script>window.tangoNetP=new Promise(function(r){window.__tangoNetResolve=r;setTimeout(function(){r(null)},10000)});</script>
+<script src="site-config.js"></script>
+<script src="analytics.js"></script>
+<script type="module" src="net-firebase.js"></script>
 <style>
 /* VOICE: 放課後のゲームセンターみたいににぎやか。でも教室のプロジェクターで読める太さ
    IDEA: 単語はモンスターへの攻撃。クラス全員のダメージで大ボスを倒すレイドバトル
@@ -120,8 +125,9 @@ table{width:100%;border-collapse:collapse;font-size:15px}td{padding:6px 4px;bord
       <h2>クラスで挑む</h2>
       <div class="lab">ニックネーム</div>
       <input class="txt" id="nick" maxlength="12" placeholder="例：さいとう" autocomplete="off">
-      <div class="lab">教室コード（4けた）</div>
-      <div class="row"><input class="txt" id="code" inputmode="numeric" maxlength="4" placeholder="1234" style="flex:1 1 120px" autocomplete="off"><button class="btn pri" id="joinBtn" disabled>参加</button></div>
+      <p class="note" style="margin-top:4px">本名ではなく、ニックネームを入れてください。</p>
+      <div class="lab">教室コード（6けた）</div>
+      <div class="row"><input class="txt" id="code" inputmode="numeric" maxlength="6" placeholder="123456" style="flex:1 1 120px" autocomplete="off"><button class="btn pri" id="joinBtn" disabled>参加</button></div>
       <div class="row" style="margin-top:14px"><button class="btn" id="hostBtn" disabled>先生：部屋をつくる</button></div>
       <p class="note" id="roomNote">クラス機能に接続しています…</p>
     </div>
@@ -231,6 +237,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td{padding:6px 4px;bord
   </div>
 </section>
 </main>
+<footer class="note" style="text-align:center;padding:0 16px 24px"><a href="privacy.html" style="color:inherit">プライバシーと外部送信について</a></footer>
 <div class="cd" id="cd" hidden><b id="cdN">3</b></div>
 
 <script>
@@ -240,6 +247,7 @@ basic:{name:'中学の基本',w:[['dog','犬|いぬ'],['cat','猫|ねこ'],['boo
 econ:{name:'経済・ビジネス',w:[['revenue','収益|売上|売上高|しゅうえき|うりあげ|うりあげだか'],['profit','利益|りえき'],['cost','費用|原価|コスト|ひよう|げんか'],['asset','資産|しさん'],['debt','負債|借金|ふさい|しゃっきん'],['equity','資本|株主資本|純資産|しほん|じゅんしさん'],['invest','投資する|投資|とうし|とうしする'],['tax','税金|税|ぜいきん|ぜい'],['budget','予算|よさん'],['market','市場|マーケット|しじょう|いちば'],['supply','供給|きょうきゅう'],['demand','需要|じゅよう'],['growth','成長|せいちょう'],['loss','損失|損|そんしつ|そん'],['interest','利子|金利|利息|興味|りし|きんり|りそく|きょうみ'],['share','株式|株|共有|シェア|かぶ|かぶしき|きょうゆう'],['dividend','配当|はいとう'],['inflation','インフレ|物価上昇|ぶっかじょうしょう'],['merger','合併|がっぺい'],['forecast','予測|予想|よそく|よそう'],['margin','利幅|マージン|りはば'],['inventory','在庫|棚卸資産|ざいこ'],['customer','顧客|客|お客|こきゃく|きゃく|おきゃく'],['contract','契約|けいやく'],['strategy','戦略|せんりゃく']]},
 toeic:{name:'TOEIC頻出',w:[['deadline','締め切り|締切|しめきり'],['schedule','予定|スケジュール|よてい'],['meeting','会議|ミーティング|かいぎ'],['employee','従業員|社員|じゅうぎょういん|しゃいん'],['colleague','同僚|どうりょう'],['invoice','請求書|せいきゅうしょ'],['receipt','領収書|レシート|りょうしゅうしょ'],['refund','返金|払い戻し|へんきん|はらいもどし'],['applicant','応募者|志願者|おうぼしゃ|しがんしゃ'],['resume','履歴書|りれきしょ'],['promotion','昇進|販売促進|しょうしん|はんばいそくしん'],['reservation','予約|よやく'],['delivery','配達|配送|はいたつ|はいそう'],['warehouse','倉庫|そうこ'],['department','部門|部署|部|ぶもん|ぶしょ|ぶ'],['agenda','議題|ぎだい'],['headquarters','本社|本部|ほんしゃ|ほんぶ'],['supplier','仕入れ先|供給業者|取引先|しいれさき|とりひきさき'],['equipment','設備|機器|装置|せつび|きき|そうち'],['branch','支店|支社|枝|してん|ししゃ|えだ'],['survey','調査|アンケート|ちょうさ'],['brochure','パンフレット|小冊子|しょうさっし']]}};
 const MODES={e2j:'英語→日本語',j2e:'日本語→英語'};
+const metric=(n,p)=>{try{window.tangoMetric&&window.tangoMetric(n,p)}catch(e){}};
 const pad=n=>String(n).padStart(2,'0');
 [['basic','B'],['econ','E'],['toeic','T']].forEach(([k,p])=>DECKS[k].w=DECKS[k].w.map((x,i)=>[x[0],x[1],p+pad(i+1)]));
 DECKS.custom={name:'自分の単語',w:[]};
@@ -414,8 +422,9 @@ function end(){
   $('#rRev').innerHTML=rev.length?rev.map(w=>`<tr><td>${esc(w[2])}</td><td><b>${esc(w[0])}</b></td><td>${esc(w[1].split('|').filter(x=>!/^[ぁ-ゟ]+$/.test(x)).join('・')||w[1].split('|')[0])}</td></tr>`).join(''):'<tr><td>まちがいなし。おみごと！</td></tr>';
   $('#again').textContent=grp?'待合室にもどる':'もう一度';show('result');
 }
-$('#again').addEventListener('click',()=>{if(grp){pub({dmg:0,state:'wait'});show('wait')}else startGame(soloCfg())});
-$('#solo').addEventListener('click',()=>{if(cfg.deck==='custom'&&!DECKS.custom.w.length){$('#loadMsg').textContent='先に下の「自分の単語セットをつくる」で単語を読み込んでください。';$('#loadMsg').scrollIntoView({block:'center'});return}leaveRoom();startGame(soloCfg())});
+$('#again').addEventListener('click',()=>{if(grp){pub({dmg:0,state:'wait'});show('wait')}else{soloMetric();startGame(soloCfg())}});
+$('#solo').addEventListener('click',()=>{if(cfg.deck==='custom'&&!DECKS.custom.w.length){$('#loadMsg').textContent='先に下の「自分の単語セットをつくる」で単語を読み込んでください。';$('#loadMsg').scrollIntoView({block:'center'});return}leaveRoom();soloMetric();startGame(soloCfg())});
+const soloMetric=()=>metric('game_start',{play:'solo',mode:cfg.mode,deck:cfg.deck,secs:cfg.secs});
 const soloCfg=()=>cfg.deck==='custom'?{...cfg,words:DECKS.custom.w}:{...cfg};
 
 // ---------- class room ----------
@@ -426,30 +435,29 @@ function valid(d){if(!(d&&MODES[d.mode]&&DECKS[d.deck]&&[60,90,120].includes(d.s
 function hostCfg(){$('#hCfg').textContent=`${MODES[cfg.mode]}／${DECKS[cfg.deck].name}${cfg.deck==='custom'?`（${DECKS.custom.w.length}語）`:''}／${cfg.secs}秒（トップ画面の設定を使います）`}
 function leaveRoom(){if(grp){grp.leave().catch(()=>{});grp=null;role=null;hostEnd=0}}
 const nickI=$('#nick'),codeI=$('#code');
-const canJoin=()=>$('#joinBtn').disabled=!(roomNS&&nickI.value.trim()&&/^\d{4}$/.test(codeI.value));
+const canJoin=()=>$('#joinBtn').disabled=!(roomNS&&nickI.value.trim()&&/^\d{6}$/.test(codeI.value));
 nickI.addEventListener('input',canJoin);codeI.addEventListener('input',()=>{codeI.value=codeI.value.replace(/\D/g,'');canJoin()});
 
 $('#joinBtn').addEventListener('click',async()=>{
   nick=nickI.value.trim().slice(0,12);code=codeI.value;
-  try{leaveRoom();grp=await roomNS.join('raid-'+code);role='player'}catch(e){$('#roomNote').textContent='参加できませんでした。少し待ってからもう一度試してください。';return}
+  try{leaveRoom();grp=await roomNS.join('raid-'+code);role='player'}catch(e){$('#roomNote').textContent=e&&e.code==='not_found'?'その教室コードの部屋が見つかりません。コードを確かめてください。':'参加できませんでした。少し待ってからもう一度試してください。';return}
   grp.presence({role:'player',nick,dmg:0,combo:0,state:'wait'}).catch(()=>{});
-  grp.on('start',m=>{const d=m.data;if(!valid(d)||d.epoch===lastEpoch||(G&&G.run))return;lastEpoch=d.epoch;startGame({mode:d.mode,deck:d.deck,secs:d.secs,words:d.deck==='custom'?d.words.map(w=>{const n=[w[0],w[1],w[2]];if(w[3])n.wt=+w[3]||1;return n}):null})});
+  grp.on('start',m=>{const d=m.data;if(!valid(d)||d.epoch===lastEpoch||(G&&G.run))return;lastEpoch=d.epoch;metric('game_start',{play:'class',mode:d.mode,deck:d.deck,secs:d.secs});startGame({mode:d.mode,deck:d.deck,secs:d.secs,words:d.deck==='custom'?d.words.map(w=>{const n=[w[0],w[1],w[2]];if(w[3])n.wt=+w[3]||1;return n}):null})});
   grp.onPeers(()=>{renderWait();refresh(0)});
-  $('#wCode').textContent=code;$('#wMe').textContent=`あなたは「${nick}」で参加しています`;renderWait();show('wait');
+  metric('room_join');$('#wCode').textContent=code;$('#wMe').textContent=`あなたは「${nick}」で参加しています`;renderWait();show('wait');
 });
 function renderWait(){if(grp&&!$('#wait').hidden)$('#wList').innerHTML=party().map(p=>`<span class="chip">${esc(p.n)}${p.me?'（あなた）':''}</span>`).join('')}
 
 $('#hostBtn').addEventListener('click',async()=>{
-  code=String(1000+Math.random()*9000|0);
-  try{leaveRoom();grp=await roomNS.join('raid-'+code);role='host'}catch(e){$('#roomNote').textContent='部屋をつくれませんでした。少し待ってからもう一度試してください。';return}
+  try{leaveRoom();code=roomNS.create?await roomNS.create():String(100000+Math.random()*900000|0);grp=await roomNS.join('raid-'+code);role='host'}catch(e){$('#roomNote').textContent='部屋をつくれませんでした。少し待ってからもう一度試してください。';return}
   grp.presence({role:'host'}).catch(()=>{});grp.onPeers(()=>{collect();refresh(0);renderAgg()});hostStats=new Map;renderAgg();
-  $('#hCode').textContent=code;$('#hMsg').textContent='';$('#hPod').innerHTML='';$('#hArena').dataset.b='';hostCfg();show('host');refresh(0);
+  $('#hCode').textContent=code;$('#hMsg').textContent='';$('#hPod').innerHTML='';$('#hArena').dataset.b='';hostCfg();show('host');refresh(0);metric('room_create');
 });
 $('#hStart').addEventListener('click',()=>{
   if(cfg.deck==='custom'&&!DECKS.custom.w.length){$('#hMsg').textContent='「自分の単語」がまだ空です。トップで単語を読み込んでから部屋をつくってください。';return}
   const d={...cfg,epoch:Date.now()};if(cfg.deck==='custom'){d.words=DECKS.custom.w.map(w=>w.wt>1?[w[0],w[1],w[2],String(w.wt)]:[w[0],w[1],w[2]]);if(new Blob([JSON.stringify(d)]).size>3900){$('#hMsg').textContent=`単語が多すぎて一度に送れません（${d.words.length}語）。60語くらいまでに減らしてください。`;return}}
-  grp.emit('start',d).then(()=>{hostEnd=Date.now()+2400+d.secs*1000;hostStats=new Map;$('#hPod').innerHTML='';renderAgg();hostTick()})
-    .catch(e=>{$('#hMsg').textContent=e&&e.code==='not_permitted'?'スタートできるのは、このページの編集権限がある人だけです。':'スタートの合図を送れませんでした。もう一度押してください。'});
+  grp.emit('start',d).then(()=>{metric('room_start',{players:party().length,mode:d.mode,deck:d.deck,secs:d.secs});hostEnd=Date.now()+2400+d.secs*1000;hostStats=new Map;$('#hPod').innerHTML='';renderAgg();hostTick()})
+    .catch(e=>{$('#hMsg').textContent=e&&e.code==='not_permitted'?'スタートできるのは、この部屋をつくった先生だけです。':'スタートの合図を送れませんでした。もう一度押してください。'});
 });
 function hostTick(){
   if(role!=='host')return;const left=Math.ceil((hostEnd-Date.now())/1000);
@@ -529,7 +537,11 @@ function copyOut(text,btn){
 ['rCsv','rIds','listCopy','listDl','rDl','hAggDl','hAggCopy','hStuDl','hStuCopy'].forEach(id=>$('#'+id).dataset.l=$('#'+id).textContent);
 const stamp=()=>{const d=new Date;return`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`};
 async function save(name,text,btn){
-  try{await dl.save({filename:name,data:'﻿'+text});btn.textContent='保存しました'}
+  try{
+    if(dl)await dl.save({filename:name,data:'﻿'+text});
+    else{const u=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');
+      a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+    btn.textContent='保存しました'}
   catch(e){btn.textContent=e&&e.code==='declined'?'キャンセルしました':'保存できませんでした'}
   setTimeout(()=>btn.textContent=btn.dataset.l,1800);
 }
@@ -571,14 +583,15 @@ $('#hStuDl').addEventListener('click',e=>save(`生徒別_${code}_${stamp()}.csv`
 $('#hStuCopy').addEventListener('click',e=>copyOut(stuCSV(),e.currentTarget));
 $('#hAggUse').addEventListener('click',e=>{const ag=classAgg().filter(a=>a.m+a.c>0);if(!ag.length)return;setCustom(ag.map(a=>{const w=[a.w[0],a.w[1],a.w[2]];w.wt=1+Math.round(a.rate*3);return w}),'まちがえやすかった');hostCfg();const b=e.currentTarget;b.textContent=`${ag.length}語をセットしました`;setTimeout(()=>b.textContent='次回の単語セットにする',2000)});
 
-$('#rRetry').addEventListener('click',()=>{setCustom(G.rev.map(x=>x.w),'まちがえた');if(grp){show('lobby');leaveRoom();return}startGame(soloCfg())});
+$('#rRetry').addEventListener('click',()=>{setCustom(G.rev.map(x=>x.w),'まちがえた');if(grp){show('lobby');leaveRoom();return}soloMetric();startGame(soloCfg())});
 
 (async()=>{
   try{dl=window.claude&&await window.claude.use('downloads')}catch(e){dl=null}
-  $('#rDl').hidden=$('#listDl').hidden=$('#hAggDl').hidden=$('#hStuDl').hidden=!dl;
+  $('#rDl').hidden=$('#listDl').hidden=$('#hAggDl').hidden=$('#hStuDl').hidden=!(dl||!window.claude);
 })();
 (async()=>{
   try{roomNS=window.claude&&await window.claude.use('room')}catch(e){roomNS=null}
+  if(!roomNS)try{roomNS=await window.tangoNetP||null}catch(e){roomNS=null}
   $('#hostBtn').disabled=!roomNS;canJoin();
   $('#roomNote').textContent=roomNS?'先生が部屋をつくり、表示されたコードを生徒が入力して参加します。':'このページではクラス機能が使えません。「ひとりで挑む」は使えます。';
 })();

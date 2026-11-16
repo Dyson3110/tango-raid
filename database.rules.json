@@ -1,0 +1,59 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        ".write": "auth != null && (!data.exists() || data.child('meta/created').val() < now - 21600000 || data.child('meta/host').val() === auth.uid) && (!newData.exists() || newData.child('meta/host').val() === auth.uid)",
+        ".validate": "$code.matches(/^[0-9]{6}$/) && newData.hasChild('meta')",
+        "meta": {
+          ".read": "auth != null",
+          ".validate": "newData.hasChildren(['host', 'created']) && newData.child('host').val() === auth.uid && newData.child('created').isNumber()",
+          "host": { ".validate": "newData.isString()" },
+          "created": { ".validate": "newData.val() <= now + 300000 && newData.val() >= now - 300000" },
+          "$other": { ".validate": false }
+        },
+        "players": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms/' + $code + '/meta').exists()",
+            ".validate": "newData.hasChildren(['role', 'nick'])",
+            "role": { ".validate": "newData.val() === 'player'" },
+            "nick": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+            "dmg": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 500000 && (!data.exists() || newData.val() === 0 || (newData.val() >= data.val() && newData.val() - data.val() <= 1000))" },
+            "combo": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+            "state": { ".validate": "newData.isString() && newData.val().matches(/^(wait|play|done)$/)" },
+            "$other": { ".validate": false }
+          }
+        },
+        "stats": {
+          ".read": "auth != null && root.child('rooms/' + $code + '/meta/host').val() === auth.uid",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms/' + $code + '/meta').exists()",
+            "st": {
+              "$id": {
+                ".validate": "$id.matches(/^[A-Z]{1,3}[0-9]{1,4}$/) && newData.hasChildren(['0', '1', '2'])",
+                "$n": { ".validate": "$n.matches(/^[0-2]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" }
+              }
+            },
+            "sum": {
+              "$n": { ".validate": "$n.matches(/^[0-3]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" }
+            },
+            "$other": { ".validate": false }
+          }
+        },
+        "start": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $code + '/meta/host').val() === auth.uid",
+          ".validate": "newData.hasChildren(['mode', 'deck', 'secs', 'epoch'])",
+          "mode": { ".validate": "newData.val() === 'e2j' || newData.val() === 'j2e'" },
+          "deck": { ".validate": "newData.isString() && newData.val().matches(/^(basic|econ|toeic|custom)$/)" },
+          "secs": { ".validate": "newData.val() === 60 || newData.val() === 90 || newData.val() === 120" },
+          "epoch": { ".validate": "newData.isNumber()" },
+          "words": { ".validate": "newData.hasChildren()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
