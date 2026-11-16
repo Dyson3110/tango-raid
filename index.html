@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>単語レイド 試作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 放課後のゲームセンターみたいににぎやか。でも教室のプロジェクターで読める太さ
+   IDEA: 単語はモンスターへの攻撃。クラス全員のダメージで大ボスを倒すレイドバトル
+   PICTURE: 画面の主役は文字のツノを生やしたモンスターと、みんなで削るHPバー
+   COLOUR and TYPE: 白地、モンスターごとの体色、ダメージは珊瑚色、4択はおなじみの4色。見出しDela Gothic One、本文M PLUS Rounded 1c
+   LAYOUT: モンスター → お題 → 入力 → 4択。右に仲間のダメージ表（スマホでは下） */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#121417);--ink:light-dark(#1b1d22,#f1f2f4);--sub:light-dark(#646a73,#a5abb4);
+--panel:light-dark(#f4f5f7,#1c1f24);--line:light-dark(#e2e5ea,#30343b);--hit:#ff5a36;--hitd:#c93a1b;--ok:#22a06b;
+--c1:#e21b3c;--c2:#1368ce;--c3:#d89e00;--c4:#26890c}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "M PLUS Rounded 1c",system-ui,sans-serif;overflow-x:clip}
+button,input{font:inherit;color:inherit}
+[hidden]{display:none!important}
+header{padding:16px max(4vw,16px);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{margin:0;font:400 clamp(28px,5vw,40px)/1.05 "Dela Gothic One",sans-serif}
+header p{margin:0;color:var(--sub);font-size:14px}
+main{max-width:1240px;margin:0 auto;padding:20px max(4vw,16px) 40px}
+.card{background:var(--panel);border-radius:18px;padding:18px}
+h2{font:400 20px/1.2 "Dela Gothic One",sans-serif;margin:0 0 12px}
+.lab{font-size:13px;color:var(--sub);margin:12px 0 6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{min-height:44px;padding:8px 14px;border-radius:999px;border:2px solid var(--line);background:var(--bg);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn{min-height:48px;padding:10px 22px;border-radius:14px;border:0;font-weight:800;cursor:pointer;background:var(--line)}
+.btn.pri{background:var(--hit);color:#fff;font-size:18px;box-shadow:0 4px 0 var(--hitd)}
+.btn.pri:active{transform:translateY(3px);box-shadow:0 1px 0 var(--hitd)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--c3);outline-offset:2px}
+.txt{min-height:48px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font-size:16px;width:100%}
+.two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{font-size:13px;color:var(--sub);margin:10px 0 0}
+.arena{position:relative;text-align:center;padding:8px 0 4px}
+.arena .mon{width:min(240px,60vw);height:auto;display:block;margin:0 auto}
+.arena .mon.hurt{animation:hurt .3s}
+.arena .mon.down{transition:opacity .5s,transform .5s;opacity:0;transform:scale(.6) rotate(-8deg)}
+@keyframes hurt{25%{transform:translateX(-10px) rotate(-3deg)}75%{transform:translateX(10px) rotate(3deg)}}
+.bname{font:400 18px/1.2 "Dela Gothic One",sans-serif;margin-top:2px}
+.hp{height:18px;border-radius:9px;background:var(--line);overflow:hidden;max-width:520px;margin:6px auto 0;position:relative}
+.hp i{display:block;height:100%;background:var(--hit);transition:width .35s}
+.hpt{font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+.dmg{position:absolute;left:50%;top:30%;font:400 34px/1 "Dela Gothic One",sans-serif;color:var(--hit);opacity:0;pointer-events:none;-webkit-text-stroke:1px #fff}
+.dmg.on{animation:dmg .8s}
+@keyframes dmg{0%{opacity:1;transform:translate(-50%,0) scale(1.3)}100%{opacity:0;transform:translate(-50%,-50px) scale(1)}}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.stat{background:var(--panel);border-radius:12px;padding:6px 14px;font-size:13px;color:var(--sub)}
+.stat b{display:block;font-size:24px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.2}
+.stat.cb b{color:var(--ok)}
+.q{font:400 clamp(34px,7vw,54px)/1.1 "Dela Gothic One",sans-serif;text-align:center;margin-top:10px;word-break:break-word}
+.qs{text-align:center;color:var(--sub);font-size:15px;min-height:24px}
+.tbar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;max-width:520px;margin:10px auto 0}
+.tbar i{display:block;height:100%;background:var(--ink);width:100%}
+.ans{display:block;margin:14px auto 0;max-width:520px;text-align:center;font-size:22px;min-height:56px}
+.ans.ng{animation:hurt .25s}
+.msg{text-align:center;min-height:24px;margin-top:8px;font-size:15px}
+.msg.bad{color:var(--hit)}
+.chs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;max-width:620px;margin:12px auto 0}
+.ch{min-height:58px;border:0;border-radius:10px;color:#fff;font-weight:800;font-size:18px;display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;text-align:left;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+.ch svg{width:22px;height:22px;flex:none}.ch span{overflow:hidden;text-overflow:ellipsis}
+.ch kbd{margin-left:auto;font:13px system-ui;opacity:.8}
+.ch:nth-child(1){background:var(--c1)}.ch:nth-child(2){background:var(--c2)}.ch:nth-child(3){background:var(--c3)}.ch:nth-child(4){background:var(--c4)}
+.chs.show{animation:rise .25s}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.keys{text-align:center;font-size:13px;color:var(--sub);margin-top:10px}
+.rank{list-style:none;margin:0;padding:0}
+.rank li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:15px}
+.rank .n{font-weight:800;color:var(--sub)}.rank .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank .sc{font-variant-numeric:tabular-nums;font-weight:800;text-align:right}
+.rank .bar{grid-column:2/4;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.rank .bar i{display:block;height:100%;background:var(--sub);transition:width .4s}
+.rank li.me{color:var(--hit)}.rank li.me .bar i{background:var(--hit)}
+.big .rank li{font-size:20px;padding:10px 0}.big .rank .bar{height:12px;border-radius:6px}
+.cd{position:fixed;inset:0;display:grid;place-items:center;background:rgba(10,12,16,.6);z-index:5}
+.cd b{font:400 min(36vw,200px)/1 "Dela Gothic One",sans-serif;color:#fff}
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:10px 0 18px}
+.pod{width:min(30%,150px);text-align:center}
+.pod .blk{border-radius:12px 12px 0 0;background:var(--ink);color:var(--bg);font:400 28px/1 "Dela Gothic One",sans-serif;display:grid;place-items:center}
+.pod .who{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pod .pts{font-size:13px;color:var(--sub)}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+table{width:100%;border-collapse:collapse;font-size:15px}td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.code{font:400 clamp(48px,10vw,88px)/1 "Dela Gothic One",sans-serif;letter-spacing:.1em;color:var(--hit)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{padding:4px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:14px}
+.troupe{display:flex;justify-content:center;gap:4px;flex-wrap:nowrap;overflow:hidden}
+.troupe svg{width:min(150px,22vw);height:auto}
+@media(max-width:760px){.two,.stage{grid-template-columns:minmax(0,1fr)}.chs{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.arena .mon.hurt,.dmg.on,.ans.ng,.chs.show{animation:none}}
+</style>
+</head>
+<body>
+<header><h1>単語レイド</h1><p>英単語で攻撃して、クラスみんなでモンスターを倒そう。</p></header>
+<main>
+
+<section id="lobby" class="screen">
+  <div class="troupe" id="troupe" aria-hidden="true"></div>
+  <div class="two" style="margin-top:14px">
+    <div class="card">
+      <h2>クエストをえらぶ</h2>
+      <div class="lab">答え方</div>
+      <div class="seg" data-k="mode"><button data-v="e2j" aria-pressed="true">英語を見て日本語で</button><button data-v="j2e">日本語を見て英語で</button></div>
+      <div class="lab">単語セット</div>
+      <div class="seg" data-k="deck" id="deckSeg"><button data-v="basic">中学の基本</button><button data-v="econ" aria-pressed="true">経済・ビジネス</button><button data-v="toeic">TOEIC頻出</button><button data-v="custom" id="customBtn">自分の単語（0語）</button></div>
+      <div class="lab">制限時間</div>
+      <div class="seg" data-k="secs"><button data-v="60">60秒</button><button data-v="90" aria-pressed="true">90秒</button><button data-v="120">120秒</button></div>
+      <div class="row" style="margin-top:18px"><button class="btn pri" id="solo">ひとりで挑む</button></div>
+      <p class="note">打って答えると大ダメージ。迷ったら4択でも答えられますが、ダメージは半分です。ひとりのときはCPUの仲間3人と一緒に戦います。単語セットは試作用のサンプルです。</p>
+    </div>
+    <div class="card">
+      <h2>クラスで挑む</h2>
+      <div class="lab">ニックネーム</div>
+      <input class="txt" id="nick" maxlength="12" placeholder="例：さいとう" autocomplete="off">
+      <div class="lab">教室コード（4けた）</div>
+      <div class="row"><input class="txt" id="code" inputmode="numeric" maxlength="4" placeholder="1234" style="flex:1 1 120px" autocomplete="off"><button class="btn pri" id="joinBtn" disabled>参加</button></div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="hostBtn" disabled>先生：部屋をつくる</button></div>
+      <p class="note" id="roomNote">クラス機能に接続しています…</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <h2>自分の単語セットをつくる</h2>
+    <p class="note" style="margin-top:0">先生はここで出題する単語を決めてから部屋をつくると、クラス全員にその単語が出ます。読み込んだ単語は、上の「自分の単語」で遊べます。</p>
+    <div class="two" style="margin-top:8px">
+      <div>
+        <div class="lab">CSVを貼り付けるか、ファイルを選ぶ</div>
+        <textarea class="txt" id="csvIn" rows="6" placeholder="番号,英単語,意味&#10;C01,revenue,収益/売上/しゅうえき&#10;C02,profit,利益/りえき&#10;（番号は省略可。意味は / で区切ると、どれでも正解）"></textarea>
+        <div class="row" style="margin-top:8px"><input type="file" id="csvFile" accept=".csv,.txt,text/csv"><button class="btn" id="csvLoad">CSVから読み込む</button></div>
+        <div class="lab">クラスの結果CSV（単語別）を読み込むとき</div>
+        <div class="row"><label class="row" style="gap:6px"><input type="checkbox" id="wOn" checked style="width:20px;height:20px"> まちがえやすい単語を多めに出す</label>
+        <label class="row" style="gap:6px">出題する単語：<select id="rateMin" class="txt" style="width:auto;min-height:44px"><option value="0">すべて</option><option value="20">まちがえやすさ20%以上</option><option value="40">40%以上</option><option value="60">60%以上</option></select></label></div>
+      </div>
+      <div>
+        <div class="lab">番号で指定する</div>
+        <input class="txt" id="idsIn" placeholder="例：E01-E10, T03, T07" autocomplete="off">
+        <div class="row" style="margin-top:8px"><button class="btn" id="idsLoad">番号から読み込む</button></div>
+        <p class="note">番号は B＝中学の基本、E＝経済・ビジネス、T＝TOEIC頻出、C＝自分で読み込んだ単語です。「E01-E10」のように範囲でも指定できます。</p>
+      </div>
+    </div>
+    <p class="msg" id="loadMsg" style="text-align:left"></p>
+    <details style="margin-top:8px"><summary>入っている単語と番号の一覧</summary>
+      <div class="row" style="margin:10px 0"><button class="btn" id="listCopy">一覧をCSVでコピー</button><button class="btn" id="listDl" hidden>一覧をCSVで保存</button></div>
+      <div class="scroll" style="max-height:320px;overflow:auto"><table id="allList"></table></div>
+    </details>
+  </div>
+</section>
+
+<section id="wait" class="screen" hidden>
+  <div class="card" style="text-align:center">
+    <div class="lab">教室コード</div><div class="code" id="wCode"></div>
+    <h2 style="margin-top:14px">先生のスタートを待っています</h2>
+    <p class="note" id="wMe"></p>
+    <div class="chips" id="wList" style="justify-content:center"></div>
+    <div class="row" style="justify-content:center;margin-top:16px"><button class="btn" data-go="lobby">退出する</button></div>
+  </div>
+</section>
+
+<section id="host" class="screen" hidden>
+  <div class="two">
+    <div class="card big">
+      <div class="arena" id="hArena"></div>
+      <h2 style="margin-top:14px">ダメージランキング（参加 <span id="hCount">0</span>人）</h2>
+      <ol class="rank" id="hRank"></ol>
+    </div>
+    <div class="card">
+      <div class="lab">生徒はこのコードで参加</div><div class="code" id="hCode"></div>
+      <p class="note" id="hCfg"></p>
+      <div class="row" style="margin-top:14px"><button class="btn pri" id="hStart">スタート</button><button class="btn" data-go="lobby">部屋を閉じる</button></div>
+      <p class="note" id="hMsg"></p>
+      <div class="chips" id="hList"></div>
+      <div class="podium" id="hPod"></div>
+      <h2 style="margin-top:18px">まちがえやすかった単語</h2>
+      <p class="note" style="margin-top:0" id="hAggNote">スタートすると、生徒の答えの結果がここに集まります。</p>
+      <div id="hAggTools" hidden>
+        <div class="row" style="margin:8px 0"><button class="btn pri" id="hAggDl" hidden>単語別CSVを保存</button><button class="btn" id="hAggCopy">単語別CSVをコピー</button><button class="btn" id="hAggUse">次回の単語セットにする</button></div>
+        <div class="row" style="margin:0 0 8px"><button class="btn" id="hStuDl" hidden>生徒別CSVを保存</button><button class="btn" id="hStuCopy">生徒別CSVをコピー</button></div>
+        <p class="note" style="margin-top:0">単語別CSVは、トップの「自分の単語セットをつくる」で読み込むと、そのまま次回の問題になります。まちがえやすかった単語ほど多く出題されます。</p>
+      </div>
+      <div style="max-height:360px;overflow:auto"><table id="hAgg"></table></div>
+      <h2 style="margin-top:18px" id="hStuT" hidden>生徒ごとの結果</h2>
+      <div style="max-height:360px;overflow:auto"><table id="hStu"></table></div>
+      <p class="note">先生の画面をプロジェクターに映すと、みんなの攻撃でボスのHPが減っていくのが見えます。ボスのHPは参加人数に合わせて増えます。ゲームの途中から参加することはできません。</p>
+    </div>
+  </div>
+</section>
+
+<section id="game" class="screen" hidden>
+  <div class="stats">
+    <div class="stat">のこり<b id="gTime">90</b></div>
+    <div class="stat">あなたのダメージ<b id="gDmg">0</b></div>
+    <div class="stat cb">コンボ<b id="gCombo">0</b></div>
+    <div class="stat">撃破<b id="gKill">0</b></div>
+  </div>
+  <div class="stage">
+    <div>
+      <div class="arena" id="gArena"></div>
+      <div class="q" id="q">…</div>
+      <div class="qs" id="qs"></div>
+      <div class="tbar"><i id="tb"></i></div>
+      <input class="txt ans" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="答えを入力して攻撃">
+      <div class="chs" id="chs" hidden></div>
+      <div class="msg" id="msg"></div>
+      <div class="keys">日本語は変換して確定、ひらがなでもOK　／　4択は 1〜4 キーかクリック　／　Escでとばす</div>
+    </div>
+    <aside class="card"><h2>パーティ</h2><ol class="rank" id="gRank"></ol></aside>
+  </div>
+</section>
+
+<section id="result" class="screen" hidden>
+  <div class="podium" id="rPod"></div>
+  <div class="two">
+    <div class="card">
+      <h2 id="rHead">けっか</h2>
+      <div class="nums" id="rNums"></div>
+      <div class="row" style="margin-top:16px"><button class="btn pri" id="again">もう一度</button><button class="btn" data-go="lobby">トップへ</button></div>
+    </div>
+    <div class="card"><h2>まちがえた単語</h2>
+      <div class="row" id="rTools" style="margin-bottom:10px"><button class="btn pri" id="rRetry">この単語で再挑戦</button><button class="btn" id="rDl" hidden>次回用CSVを保存</button><button class="btn" id="rCsv">CSVをコピー</button><button class="btn" id="rIds">番号をコピー</button></div>
+      <textarea class="txt" id="rOut" rows="3" readonly hidden></textarea>
+      <table id="rRev"></table>
+      <p class="note">保存したCSVは、トップの「自分の単語セットをつくる」に貼り付ければまた使えます。番号だけ控えておいて、あとで「番号で指定する」に入れても同じです。</p>
+    </div>
+  </div>
+</section>
+</main>
+<div class="cd" id="cd" hidden><b id="cdN">3</b></div>
+
+<script>
+{
+const DECKS={
+basic:{name:'中学の基本',w:[['dog','犬|いぬ'],['cat','猫|ねこ'],['book','本|ほん'],['water','水|みず'],['school','学校|がっこう'],['friend','友達|友だち|ともだち'],['family','家族|かぞく'],['teacher','先生|教師|せんせい|きょうし'],['morning','朝|あさ'],['river','川|かわ'],['mountain','山|やま'],['flower','花|はな'],['window','窓|まど'],['summer','夏|なつ'],['winter','冬|ふゆ'],['library','図書館|としょかん'],['kitchen','台所|キッチン|だいどころ'],['island','島|しま'],['country','国|田舎|くに|いなか'],['season','季節|きせつ'],['question','質問|問題|しつもん|もんだい'],['answer','答え|返事|こたえ|へんじ'],['future','未来|将来|みらい|しょうらい'],['history','歴史|れきし'],['city','都市|市|街|町|とし|し|まち']]},
+econ:{name:'経済・ビジネス',w:[['revenue','収益|売上|売上高|しゅうえき|うりあげ|うりあげだか'],['profit','利益|りえき'],['cost','費用|原価|コスト|ひよう|げんか'],['asset','資産|しさん'],['debt','負債|借金|ふさい|しゃっきん'],['equity','資本|株主資本|純資産|しほん|じゅんしさん'],['invest','投資する|投資|とうし|とうしする'],['tax','税金|税|ぜいきん|ぜい'],['budget','予算|よさん'],['market','市場|マーケット|しじょう|いちば'],['supply','供給|きょうきゅう'],['demand','需要|じゅよう'],['growth','成長|せいちょう'],['loss','損失|損|そんしつ|そん'],['interest','利子|金利|利息|興味|りし|きんり|りそく|きょうみ'],['share','株式|株|共有|シェア|かぶ|かぶしき|きょうゆう'],['dividend','配当|はいとう'],['inflation','インフレ|物価上昇|ぶっかじょうしょう'],['merger','合併|がっぺい'],['forecast','予測|予想|よそく|よそう'],['margin','利幅|マージン|りはば'],['inventory','在庫|棚卸資産|ざいこ'],['customer','顧客|客|お客|こきゃく|きゃく|おきゃく'],['contract','契約|けいやく'],['strategy','戦略|せんりゃく']]},
+toeic:{name:'TOEIC頻出',w:[['deadline','締め切り|締切|しめきり'],['schedule','予定|スケジュール|よてい'],['meeting','会議|ミーティング|かいぎ'],['employee','従業員|社員|じゅうぎょういん|しゃいん'],['colleague','同僚|どうりょう'],['invoice','請求書|せいきゅうしょ'],['receipt','領収書|レシート|りょうしゅうしょ'],['refund','返金|払い戻し|へんきん|はらいもどし'],['applicant','応募者|志願者|おうぼしゃ|しがんしゃ'],['resume','履歴書|りれきしょ'],['promotion','昇進|販売促進|しょうしん|はんばいそくしん'],['reservation','予約|よやく'],['delivery','配達|配送|はいたつ|はいそう'],['warehouse','倉庫|そうこ'],['department','部門|部署|部|ぶもん|ぶしょ|ぶ'],['agenda','議題|ぎだい'],['headquarters','本社|本部|ほんしゃ|ほんぶ'],['supplier','仕入れ先|供給業者|取引先|しいれさき|とりひきさき'],['equipment','設備|機器|装置|せつび|きき|そうち'],['branch','支店|支社|枝|してん|ししゃ|えだ'],['survey','調査|アンケート|ちょうさ'],['brochure','パンフレット|小冊子|しょうさっし']]}};
+const MODES={e2j:'英語→日本語',j2e:'日本語→英語'};
+const pad=n=>String(n).padStart(2,'0');
+[['basic','B'],['econ','E'],['toeic','T']].forEach(([k,p])=>DECKS[k].w=DECKS[k].w.map((x,i)=>[x[0],x[1],p+pad(i+1)]));
+DECKS.custom={name:'自分の単語',w:[]};
+const ALL=new Map;const indexWords=ws=>ws.forEach(w=>ALL.set(w[2].toUpperCase(),w));
+['basic','econ','toeic'].forEach(k=>indexWords(DECKS[k].w));
+let customSeq=0;
+const BOSSES=[['ツヅリン','#ff7a59','A','Z'],['ボキャブロス','#2bb3a3','B','Q'],['スペルドン','#f2b632','S','P'],['ゴイキング','#5b7cfa','W','K'],['ワードラ','#e2557a','X','R']];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>s.normalize('NFKC').toLowerCase().replace(/[\s・、。]/g,'').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const SHAPES=['<path d="M12 3 22 21H2Z"/>','<path d="M12 2 22 12 12 22 2 12Z"/>','<circle cx="12" cy="12" r="10"/>','<rect x="3" y="3" width="18" height="18"/>'];
+
+function monSVG(i,ko){
+  const[,c,a,b]=BOSSES[i%BOSSES.length];
+  const eye=x=>ko?`<path d="M${x-9} 86l18 18M${x+9} 86l-18 18" stroke="#1b1d22" stroke-width="5" stroke-linecap="round"/>`
+    :`<circle cx="${x}" cy="95" r="15" fill="#fff"/><circle cx="${x+3}" cy="97" r="7" fill="#1b1d22"/><circle cx="${x+5}" cy="94" r="2.5" fill="#fff"/>`;
+  return`<svg class="mon" viewBox="0 0 200 185" aria-hidden="true">
+<ellipse cx="100" cy="176" rx="68" ry="8" fill="rgba(0,0,0,.14)"/>
+<g transform="rotate(-16 62 38)"><rect x="44" y="18" width="38" height="38" rx="8" fill="#fff" stroke="${c}" stroke-width="5"/><text x="63" y="47" text-anchor="middle" font-family="Dela Gothic One,sans-serif" font-size="26" fill="${c}">${a}</text></g>
+<g transform="rotate(14 138 36)"><rect x="119" y="16" width="38" height="38" rx="8" fill="#fff" stroke="${c}" stroke-width="5"/><text x="138" y="45" text-anchor="middle" font-family="Dela Gothic One,sans-serif" font-size="26" fill="${c}">${b}</text></g>
+<path d="M28 166Q16 62 100 48Q184 62 172 166Q156 156 138 168Q120 156 100 168Q80 156 62 168Q44 156 28 166Z" fill="${c}"/>
+<path d="M52 82Q100 50 148 82" stroke="#fff" stroke-opacity=".35" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M28 166Q22 120 40 96" stroke="#000" stroke-opacity=".12" stroke-width="12" fill="none" stroke-linecap="round"/>
+${eye(74)}${eye(126)}
+<path d="M78 128Q100 ${ko?122:146} 122 128Z" fill="#1b1d22"/>${ko?'':'<path d="M86 129l4 7 4-7M106 129l4 7 4-7" fill="#fff"/>'}
+</svg>`;
+}
+$('#troupe').innerHTML=BOSSES.map((_,i)=>monSVG(i,false)).join('');
+
+let cfg={mode:'e2j',deck:'econ',secs:90};
+let G=null,roomNS=null,grp=null,role=null,nick='',code='',hostEnd=0,hostCfgRun=null,lastEpoch=0,raf=0,botTimer=0,shownBoss=-1;
+const ALLIES=[['リン',.10],['ソウタ',.13],['ミオ',.16]].map(([n,r])=>({n:n+'（CPU）',r,d:0,c:0}));
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.hidden=s.id!==id);scrollTo(0,0)}
+document.querySelectorAll('.seg').forEach(g=>g.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  cfg[g.dataset.k]=g.dataset.k==='secs'?+b.dataset.v:b.dataset.v;hostCfg();
+}));
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{leaveRoom();stopGame();show(b.dataset.go)}));
+
+// ---------- party & boss ----------
+function party(){
+  if(grp)return grp.peers().filter(p=>p.presence&&p.presence.role==='player')
+    .map(p=>({n:String(p.presence.nick||'だれか').slice(0,12),d:Math.max(0,Number(p.presence.dmg)||0),me:p.isMe&&p.sameTab}));
+  return[{n:'あなた',d:G?G.dmg:0,me:true},...ALLIES.map(a=>({n:a.n,d:a.d}))];
+}
+function boss(total,size){
+  let i=0,left=total;
+  for(;;i++){const hp=Math.round(1200*Math.max(1,size)*(1+i*.35));if(left<hp)return{i,hp,cur:hp-left};left-=hp}
+}
+function arena(el,b,hurtDmg){
+  const name=BOSSES[b.i%BOSSES.length][0];
+  if(el.dataset.b!=String(b.i)){
+    el.dataset.b=b.i;
+    el.innerHTML=`<div class="dmg"></div>${monSVG(b.i,false)}<div class="bname">${b.i+1}体目　${name}</div><div class="hp"><i></i></div><div class="hpt"></div>`;
+  }
+  el.querySelector('.hp i').style.width=b.cur/b.hp*100+'%';
+  el.querySelector('.hpt').textContent=`HP ${b.cur.toLocaleString()} / ${b.hp.toLocaleString()}`;
+  if(hurtDmg){const m=el.querySelector('.mon'),d=el.querySelector('.dmg');
+    m.classList.remove('hurt');void m.offsetWidth;m.classList.add('hurt');
+    d.textContent=hurtDmg;d.classList.remove('on');void d.offsetWidth;d.classList.add('on')}
+}
+function refresh(hurt){
+  const p=party(),tot=p.reduce((s,x)=>s+x.d,0),b=boss(tot,grp?p.length:2);
+  if(!$('#game').hidden){
+    if(G&&b.i>G.kills){G.kills=b.i;msg(`${BOSSES[(b.i-1)%BOSSES.length][0]}をたおした！次のモンスターが来た`,false)}
+    arena($('#gArena'),b,hurt);$('#gKill').textContent=b.i;$('#gRank').innerHTML=rankHTML(p);
+  }
+  if(role==='host'){arena($('#hArena'),b,0);$('#hRank').innerHTML=rankHTML(p,10);$('#hCount').textContent=p.length;
+    $('#hList').innerHTML=hostEnd?'':p.map(x=>`<span class="chip">${esc(x.n)}</span>`).join('')}
+  return{p,b};
+}
+function rankHTML(list,max=8){
+  list=list.slice().sort((a,b)=>b.d-a.d);const top=Math.max(1,list[0]?.d||1);
+  return list.slice(0,max).map((x,i)=>`<li class="${x.me?'me':''}"><span class="n">${i+1}</span><span class="nm">${esc(x.n)}</span><span class="sc">${x.d.toLocaleString()}</span><span class="bar"><i style="width:${x.d/top*100}%"></i></span></li>`).join('')||'<li><span></span><span class="nm">まだだれもいません</span></li>';
+}
+function podium(list){
+  list=list.slice().sort((a,b)=>b.d-a.d);const order=[1,0,2],h=[120,160,90];
+  return order.filter(i=>list[i]).map((i,k)=>`<div class="pod"><div class="who">${esc(list[i].n)}</div><div class="pts">${list[i].d.toLocaleString()}ダメージ</div><div class="blk" style="height:${h[k]}px">${i+1}</div></div>`).join('');
+}
+
+// ---------- game ----------
+const inp=$('#ans'),chs=$('#chs');
+function startGame(s){
+  stopGame();
+  G={...s,pool:s.words||DECKS[s.deck].w,words:weighted(s.words||DECKS[s.deck].w),wi:0,cur:null,dmg:0,combo:0,maxc:0,typed:0,chose:0,miss:0,typo:0,missed:[],st:{},kills:0,t0:0,run:false};
+  if(!grp)ALLIES.forEach(a=>{a.d=0;a.c=0});
+  inp.value='';msg('',false);$('#q').textContent='…';$('#qs').textContent='';chs.hidden=true;$('#gArena').dataset.b='';
+  show('game');stats();refresh(0);pub({dmg:0,combo:0,st:{},state:'play'});
+  let n=3;$('#cd').hidden=false;$('#cdN').textContent=n;
+  const t=setInterval(()=>{n--;if(n>0){$('#cdN').textContent=n;return}
+    clearInterval(t);$('#cd').hidden=true;G.t0=performance.now();G.run=true;next();inp.focus();G.endT=setTimeout(()=>{if(G&&G.run)end()},G.secs*1000+60);
+    if(!grp)botTimer=setInterval(allies,800);raf=requestAnimationFrame(loop)},800);
+}
+function weighted(ws){let a=shuffle(ws.flatMap(w=>Array(Math.min(4,Math.max(1,w.wt|0||1))).fill(w)));
+  for(let i=1;i<a.length;i++)if(a[i]===a[i-1]){const j=a.findIndex((x,k)=>k>i&&x!==a[i]&&a[k-1]!==x&&a[k+1]!==a[i]);if(j>0)[a[i],a[j]]=[a[j],a[i]]}return a}
+function stopGame(){if(G){G.run=false;clearTimeout(G.endT)}cancelAnimationFrame(raf);clearInterval(botTimer);$('#cd').hidden=true}
+function next(){
+  const w=G.words[G.wi++%G.words.length],now=performance.now();
+  G.cur={w,born:now,T:Math.max(9000,13000-G.combo*250),choices:null};
+  inp.value='';chs.hidden=true;
+  const m=w[1].split('|')[0];
+  $('#q').textContent=G.mode==='e2j'?w[0]:m;
+  $('#qs').textContent=G.mode==='e2j'?'日本語の意味を入力':'英単語を入力';
+}
+function loop(now){
+  if(!G||!G.run)return;
+  const left=G.secs-(now-G.t0)/1000;if(left<=0)return end();
+  $('#gTime').textContent=Math.ceil(left);
+  const c=G.cur,f=(now-c.born)/c.T;
+  $('#tb').style.width=Math.max(0,1-f)*100+'%';
+  if(f>=.65&&!c.choices)openChoices();
+  if(f>=1){fail('モンスターの反撃！　時間切れ');}
+  raf=requestAnimationFrame(loop);
+}
+function label(w){return G.mode==='e2j'?w[1].split('|')[0]:w[0]}
+function openChoices(){
+  const c=G.cur,lab=w=>label(w);let pool=shuffle(G.pool.filter(x=>x!==c.w&&lab(x)!==lab(c.w))).slice(0,3);
+  if(pool.length<3)pool=pool.concat(shuffle([...ALL.values()].filter(x=>x!==c.w&&!pool.includes(x)&&lab(x)!==lab(c.w))).slice(0,3-pool.length));
+  c.choices=shuffle([c.w,...pool]);
+  chs.innerHTML=c.choices.map((w,i)=>`<button class="ch" data-i="${i}"><svg viewBox="0 0 24 24" fill="#fff">${SHAPES[i]}</svg><span>${esc(label(w))}</span><kbd>${i+1}</kbd></button>`).join('');
+  chs.hidden=false;chs.classList.remove('show');void chs.offsetWidth;chs.classList.add('show');
+  $('#qs').textContent='入力でも、下の4択でもOK（4択はダメージ半分）';
+}
+chs.addEventListener('click',e=>{const b=e.target.closest('.ch');if(b)choose(+b.dataset.i)});
+function choose(i){
+  if(!G||!G.run||!G.cur.choices)return;
+  if(G.cur.choices[i]===G.cur.w)hit(true);else fail(`ちがうよ　正解：${G.cur.w[0]} ＝ ${G.cur.w[1].split('|')[0]}`);
+}
+function answers(){return G.mode==='e2j'?G.cur.w[1].split('|').map(norm):[norm(G.cur.w[0])]}
+function check(final){
+  if(!G||!G.run||!G.cur)return;const v=norm(inp.value);if(!v)return;
+  if(answers().includes(v))return hit(false);
+  if(final){G.typo++;inp.classList.remove('ng');void inp.offsetWidth;inp.classList.add('ng')}
+}
+function hit(byChoice){
+  const c=G.cur,f=Math.min(1,(performance.now()-c.born)/c.T);
+  let d=Math.round((100+120*(1-f))*(1+Math.min(G.combo,10)*.1));
+  if(byChoice){d=Math.round(d/2);G.chose++}else{G.typed++;G.combo++;G.maxc=Math.max(G.maxc,G.combo)}
+  track(c.w,byChoice?2:0);
+  G.dmg+=d;msg(byChoice?'4択で攻撃！':(G.combo>1?`${G.combo}コンボ！`:'ヒット！'),false);
+  pub({dmg:G.dmg,combo:G.combo,st:G.st,sum:[G.typed,G.chose,G.miss,G.maxc]});stats();refresh(d);next();
+}
+function fail(t){
+  G.combo=0;G.miss++;G.missed.push(G.cur.w);track(G.cur.w,1);msg(t.includes('正解')?t:`${t}　正解：${G.cur.w[0]} ＝ ${G.cur.w[1].split('|')[0]}`,true);
+  pub({combo:0,st:G.st,sum:[G.typed,G.chose,G.miss,G.maxc]});stats();next();
+}
+function track(w,k){const id=w[2];if(!G.st[id]&&Object.keys(G.st).length>=150)return;const a=G.st[id]||(G.st[id]=[0,0,0]);a[0]++;if(k)a[k]++}
+function msg(t,bad){const m=$('#msg');m.textContent=t;m.classList.toggle('bad',bad)}
+function stats(){$('#gDmg').textContent=G.dmg.toLocaleString();$('#gCombo').textContent=G.combo}
+inp.addEventListener('input',e=>{if(!e.isComposing)check(false)});
+inp.addEventListener('compositionend',()=>setTimeout(()=>check(false)));
+inp.addEventListener('keydown',e=>{
+  if(e.isComposing||e.keyCode===229)return;
+  if(e.key==='Enter'){e.preventDefault();check(true)}
+  else if(e.key==='Escape'&&G&&G.run){e.preventDefault();fail('とばした')}
+  else if(/^[1-4]$/.test(e.key)&&G&&G.cur&&G.cur.choices&&(G.mode==='j2e'||!inp.value)){e.preventDefault();choose(+e.key-1)}
+});
+function allies(){if(!G||!G.run)return;let any=0;ALLIES.forEach(a=>{if(Math.random()<a.r){a.d+=Math.round((100+Math.random()*100)*(1+Math.min(a.c,10)*.1));a.c++;any=1}else if(Math.random()<.25)a.c=0});if(any)refresh(0)}
+
+function end(){
+  stopGame();pub({dmg:G.dmg,state:'done'});
+  const{p,b}=refresh(0),pos=p.slice().sort((x,y)=>y.d-x.d).findIndex(x=>x.me)+1,tot=G.typed+G.chose+G.miss;
+  $('#rPod').innerHTML=podium(p);
+  $('#rHead').textContent=`パーティで${b.i}体たおした！　あなたは${p.length}人中${pos}位`;
+  $('#rNums').innerHTML=[['ダメージ',G.dmg.toLocaleString()],['打って正解',`${G.typed}問`],['4択で正解',`${G.chose}問`],['まちがい・時間切れ',`${G.miss}/${tot}問`],['最大コンボ',G.maxc]]
+    .map(([k,v])=>`<div class="stat">${k}<b>${v}</b></div>`).join('');
+  const cnt=new Map;G.missed.forEach(w=>cnt.set(w,(cnt.get(w)||0)+1));G.rev=[...cnt].map(([w,n])=>({w,n}));const rev=G.rev.map(x=>x.w);
+  $('#rTools').hidden=!rev.length;$('#rOut').hidden=true;
+  $('#rRev').innerHTML=rev.length?rev.map(w=>`<tr><td>${esc(w[2])}</td><td><b>${esc(w[0])}</b></td><td>${esc(w[1].split('|').filter(x=>!/^[ぁ-ゟ]+$/.test(x)).join('・')||w[1].split('|')[0])}</td></tr>`).join(''):'<tr><td>まちがいなし。おみごと！</td></tr>';
+  $('#again').textContent=grp?'待合室にもどる':'もう一度';show('result');
+}
+$('#again').addEventListener('click',()=>{if(grp){pub({dmg:0,state:'wait'});show('wait')}else startGame(soloCfg())});
+$('#solo').addEventListener('click',()=>{if(cfg.deck==='custom'&&!DECKS.custom.w.length){$('#loadMsg').textContent='先に下の「自分の単語セットをつくる」で単語を読み込んでください。';$('#loadMsg').scrollIntoView({block:'center'});return}leaveRoom();startGame(soloCfg())});
+const soloCfg=()=>cfg.deck==='custom'?{...cfg,words:DECKS.custom.w}:{...cfg};
+
+// ---------- class room ----------
+function pub(p){if(grp&&role==='player')grp.presence(p).catch(()=>{})}
+function valid(d){if(!(d&&MODES[d.mode]&&DECKS[d.deck]&&[60,90,120].includes(d.secs)))return false;
+  if(d.deck!=='custom')return true;
+  return Array.isArray(d.words)&&d.words.length>0&&d.words.length<=150&&d.words.every(w=>Array.isArray(w)&&(w.length===3||w.length===4)&&w.every(x=>typeof x==='string'&&x.length>0&&x.length<=200))}
+function hostCfg(){$('#hCfg').textContent=`${MODES[cfg.mode]}／${DECKS[cfg.deck].name}${cfg.deck==='custom'?`（${DECKS.custom.w.length}語）`:''}／${cfg.secs}秒（トップ画面の設定を使います）`}
+function leaveRoom(){if(grp){grp.leave().catch(()=>{});grp=null;role=null;hostEnd=0}}
+const nickI=$('#nick'),codeI=$('#code');
+const canJoin=()=>$('#joinBtn').disabled=!(roomNS&&nickI.value.trim()&&/^\d{4}$/.test(codeI.value));
+nickI.addEventListener('input',canJoin);codeI.addEventListener('input',()=>{codeI.value=codeI.value.replace(/\D/g,'');canJoin()});
+
+$('#joinBtn').addEventListener('click',async()=>{
+  nick=nickI.value.trim().slice(0,12);code=codeI.value;
+  try{leaveRoom();grp=await roomNS.join('raid-'+code);role='player'}catch(e){$('#roomNote').textContent='参加できませんでした。少し待ってからもう一度試してください。';return}
+  grp.presence({role:'player',nick,dmg:0,combo:0,state:'wait'}).catch(()=>{});
+  grp.on('start',m=>{const d=m.data;if(!valid(d)||d.epoch===lastEpoch||(G&&G.run))return;lastEpoch=d.epoch;startGame({mode:d.mode,deck:d.deck,secs:d.secs,words:d.deck==='custom'?d.words.map(w=>{const n=[w[0],w[1],w[2]];if(w[3])n.wt=+w[3]||1;return n}):null})});
+  grp.onPeers(()=>{renderWait();refresh(0)});
+  $('#wCode').textContent=code;$('#wMe').textContent=`あなたは「${nick}」で参加しています`;renderWait();show('wait');
+});
+function renderWait(){if(grp&&!$('#wait').hidden)$('#wList').innerHTML=party().map(p=>`<span class="chip">${esc(p.n)}${p.me?'（あなた）':''}</span>`).join('')}
+
+$('#hostBtn').addEventListener('click',async()=>{
+  code=String(1000+Math.random()*9000|0);
+  try{leaveRoom();grp=await roomNS.join('raid-'+code);role='host'}catch(e){$('#roomNote').textContent='部屋をつくれませんでした。少し待ってからもう一度試してください。';return}
+  grp.presence({role:'host'}).catch(()=>{});grp.onPeers(()=>{collect();refresh(0);renderAgg()});hostStats=new Map;renderAgg();
+  $('#hCode').textContent=code;$('#hMsg').textContent='';$('#hPod').innerHTML='';$('#hArena').dataset.b='';hostCfg();show('host');refresh(0);
+});
+$('#hStart').addEventListener('click',()=>{
+  if(cfg.deck==='custom'&&!DECKS.custom.w.length){$('#hMsg').textContent='「自分の単語」がまだ空です。トップで単語を読み込んでから部屋をつくってください。';return}
+  const d={...cfg,epoch:Date.now()};if(cfg.deck==='custom'){d.words=DECKS.custom.w.map(w=>w.wt>1?[w[0],w[1],w[2],String(w.wt)]:[w[0],w[1],w[2]]);if(new Blob([JSON.stringify(d)]).size>3900){$('#hMsg').textContent=`単語が多すぎて一度に送れません（${d.words.length}語）。60語くらいまでに減らしてください。`;return}}
+  grp.emit('start',d).then(()=>{hostEnd=Date.now()+2400+d.secs*1000;hostStats=new Map;$('#hPod').innerHTML='';renderAgg();hostTick()})
+    .catch(e=>{$('#hMsg').textContent=e&&e.code==='not_permitted'?'スタートできるのは、このページの編集権限がある人だけです。':'スタートの合図を送れませんでした。もう一度押してください。'});
+});
+function hostTick(){
+  if(role!=='host')return;const left=Math.ceil((hostEnd-Date.now())/1000);
+  if(left>0){$('#hMsg').textContent=`バトル中… のこり ${left}秒`;setTimeout(hostTick,500)}
+  else{hostEnd=0;const{p,b}=refresh(0);$('#hMsg').textContent=`終了！ クラスで${b.i}体たおしました。もう一度スタートできます。`;$('#hPod').innerHTML=podium(p);collect();renderAgg()}
+  refresh(0);
+}
+
+// ---------- CSV と番号 ----------
+let dl=null;
+const csvCell=v=>/[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;
+const meanings=w=>w[1].split('|').join('/');
+const toCSV=(rows,withCount)=>['番号,英単語,意味'+(withCount?',まちがえた回数':''),...rows.map(r=>[r.w[2],r.w[0],meanings(r.w)].concat(withCount?[String(r.n)]:[]).map(csvCell).join(','))].join('\n');
+function parseCSV(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true;else if(c===','||c==='\t'){row.push(cur);cur=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur=''}else cur+=c}
+  row.push(cur);rows.push(row);
+  const out=[],bad=[];let hdr=null;
+  rows.map(r=>r.map(x=>x.replace(/^﻿/,'').trim())).forEach((r,i)=>{
+    if(!r.some(Boolean))return;
+    if(i===0&&/英単語|english|word/i.test(r.join(','))){hdr=r;return}
+    if(i===0&&/名前/.test(r.join(',')))throw new Error('stu');
+    let id='',en,ja;
+    if(r.length>=3&&/^[A-Za-z]{1,3}-?\d{1,4}$/.test(r[0])&&/[A-Za-z]/.test(r[1])){[id,en,ja]=r}else{[en,ja]=r}
+    ja=(ja||'').split(/[\/／|｜]/).map(x=>x.trim()).filter(Boolean).join('|');
+    if(!en||!ja||en.length>60||ja.length>200){bad.push(i+1);return}
+    const w=[en,ja,id.toUpperCase().replace('-','')];
+    if(hdr){const ri=hdr.indexOf('まちがえやすさ'),ci=hdr.findIndex(h=>/まちがえた回数|まちがい回数/.test(h));
+      if(ri>=0&&r[ri]!==undefined&&r[ri]!==''){w.rate=parseFloat(r[ri])||0;w.wt=1+Math.round(Math.min(100,w.rate)/100*3)}
+      else if(ci>=0){const n=parseInt(r[ci])||0;w.rate=null;w.wt=Math.min(4,1+n)}}
+    out.push(w);
+  });
+  return{out,bad};
+}
+function setCustom(ws,how){
+  const used=new Set,list=[];
+  ws.forEach(w=>{let id=w[2];
+    if(!id||used.has(id)){do{id='C'+pad(++customSeq)}while(ALL.has(id)&&!(ALL.get(id)[0]===w[0]))}
+    used.add(id);const nw=[w[0],w[1],id];if(w.wt>1)nw.wt=w.wt;list.push(nw);if(!ALL.has(id)||id[0]==='C')ALL.set(id,[w[0],w[1],id])});
+  DECKS.custom.w=list;$('#customBtn').textContent=`自分の単語（${list.length}語）`;
+  const b=$('#customBtn');document.querySelectorAll('#deckSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));cfg.deck='custom';hostCfg();
+  $('#loadMsg').className='msg';$('#loadMsg').textContent=`${how}${list.length}語を読み込みました（${list.slice(0,4).map(w=>w[0]).join('、')}${list.length>4?' …':''}）。「自分の単語」が選ばれています。`;
+  const hw=list.filter(w=>w.wt>1).length;if(hw)$('#loadMsg').textContent+=`　まちがえやすかった${hw}語は多めに出題します。`;
+  renderAll();
+}
+function loadErr(t){$('#loadMsg').className='msg bad';$('#loadMsg').textContent=t}
+$('#csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  f.text().then(t=>{$('#csvIn').value=t;$('#csvLoad').click()}).catch(()=>loadErr('ファイルを読み込めませんでした。'))});
+$('#csvLoad').addEventListener('click',()=>{
+  let out,bad;try{({out,bad}=parseCSV($('#csvIn').value))}catch(e){return loadErr('これは生徒別CSVです。問題にするときは「単語別CSV」を読み込んでください。')}
+  const min=+$('#rateMin').value;if(min&&out.some(w=>typeof w.rate==='number')){const n=out.length;out=out.filter(w=>typeof w.rate!=='number'||w.rate>=min);if(!out.length)return loadErr(`まちがえやすさ${min}%以上の単語はありませんでした。`)}
+  if(!$('#wOn').checked)out.forEach(w=>delete w.wt);
+  if(!out.length)return loadErr('単語が見つかりませんでした。「英単語,意味」または「番号,英単語,意味」の形で1行に1語ずつ書いてください。');
+  setCustom(out,bad.length?`${bad.length}行は形がちがうので飛ばしました。`:'');
+});
+$('#idsLoad').addEventListener('click',()=>{
+  const got=[],miss=[];
+  $('#idsIn').value.toUpperCase().split(/[,\s、，]+/).filter(Boolean).forEach(t=>{
+    const m=t.match(/^([A-Z]{1,3})-?(\d+)(?:[-~〜]([A-Z]{1,3})?-?(\d+))?$/);
+    if(!m)return miss.push(t);
+    const a=+m[2],b=m[4]?+m[4]:a;
+    for(let n=Math.min(a,b);n<=Math.max(a,b)&&n-a<500;n++){const w=ALL.get(m[1]+pad(n));w?got.includes(w)||got.push(w):miss.push(m[1]+pad(n))}
+  });
+  if(!got.length)return loadErr('その番号の単語が見つかりませんでした。');
+  setCustom(got,miss.length?`見つからない番号がありました（${miss.slice(0,5).join('、')}${miss.length>5?' …':''}）。`:'');
+});
+function renderAll(){$('#allList').innerHTML='<tr><td><b>番号</b></td><td><b>英単語</b></td><td><b>意味</b></td></tr>'+[...ALL.values()].map(w=>`<tr><td>${esc(w[2])}</td><td>${esc(w[0])}</td><td>${esc(meanings(w))}</td></tr>`).join('')}
+renderAll();
+function copyOut(text,btn){
+  const o=$('#rOut'),inRes=!!btn.closest('#result'),done=t=>{btn.textContent=t;setTimeout(()=>btn.textContent=btn.dataset.l,2500)};
+  const fallback=()=>{if(inRes){o.hidden=false;o.value=text;o.select();done('下の欄から選んでコピーしてください')}else done('コピーできませんでした')};
+  try{navigator.clipboard.writeText(text).then(()=>done('コピーしました'),fallback)}catch(e){fallback()}
+}
+['rCsv','rIds','listCopy','listDl','rDl','hAggDl','hAggCopy','hStuDl','hStuCopy'].forEach(id=>$('#'+id).dataset.l=$('#'+id).textContent);
+const stamp=()=>{const d=new Date;return`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`};
+async function save(name,text,btn){
+  try{await dl.save({filename:name,data:'﻿'+text});btn.textContent='保存しました'}
+  catch(e){btn.textContent=e&&e.code==='declined'?'キャンセルしました':'保存できませんでした'}
+  setTimeout(()=>btn.textContent=btn.dataset.l,1800);
+}
+$('#rCsv').addEventListener('click',e=>copyOut(toCSV(G.rev,true),e.currentTarget));
+$('#rIds').addEventListener('click',e=>copyOut(G.rev.map(x=>x.w[2]).join(','),e.currentTarget));
+$('#rDl').addEventListener('click',e=>save(`まちがえた単語_${stamp()}.csv`,toCSV(G.rev,true),e.currentTarget));
+$('#listCopy').addEventListener('click',e=>copyOut(toCSV([...ALL.values()].map(w=>({w})),false),e.currentTarget));
+$('#listDl').addEventListener('click',e=>save('単語一覧.csv',toCSV([...ALL.values()].map(w=>({w})),false),e.currentTarget));
+// ---------- 先生側の集計 ----------
+let hostStats=new Map;
+function collect(){if(role!=='host'||!grp)return;grp.peers().forEach(p=>{const pr=p.presence;if(pr&&pr.role==='player'&&pr.st&&typeof pr.st==='object'&&!Array.isArray(pr.st))hostStats.set(p.peer,{n:String(pr.nick||'だれか').slice(0,12),st:pr.st,d:Math.max(0,+pr.dmg||0),sum:Array.isArray(pr.sum)?pr.sum.slice(0,4).map(v=>Math.max(0,+v||0)):[0,0,0,0]})})}
+function classAgg(){
+  const m=new Map;
+  hostStats.forEach(({st,n:who})=>Object.entries(st).slice(0,150).forEach(([id,v])=>{
+    const w=ALL.get(String(id).toUpperCase());if(!w||!Array.isArray(v))return;
+    const t=Math.max(0,+v[0]||0),mi=Math.max(0,+v[1]||0),c=Math.max(0,+v[2]||0);if(!t)return;
+    const a=m.get(w)||{w,t:0,m:0,c:0,ppl:0,who:0,names:[]};a.t+=t;a.m+=mi;a.c+=c;a.who++;if(mi){a.ppl++;a.names.push(who)}m.set(w,a)}));
+  return[...m.values()].map(a=>({...a,n:a.m,rate:(a.m+a.c*.5)/a.t})).sort((x,y)=>y.rate-x.rate||y.m-x.m);
+}
+const pct=x=>Math.round(x*100)+'%';
+function renderAgg(){
+  if(role!=='host')return;const ag=classAgg();
+  $('#hAggTools').hidden=!ag.length;
+  $('#hAggNote').textContent=ag.length?`${hostStats.size}人分の結果から集計しています。「まちがえやすさ」は、まちがい＋4択（半分として数える）÷出題回数です。`:'スタートすると、生徒の答えの結果がここに集まります。';
+  renderStu();
+  $('#hAgg').innerHTML=ag.length?'<tr><td><b>番号</b></td><td><b>英単語</b></td><td><b>まちがえた人</b></td><td><b>まちがえやすさ</b></td></tr>'+ag.map(a=>`<tr><td>${esc(a.w[2])}</td><td><b>${esc(a.w[0])}</b><br><span class="note">${esc(a.w[1].split('|')[0])}</span></td><td>${a.ppl}/${a.who}人</td><td>${pct(a.rate)}</td></tr>`).join(''):'';
+}
+const aggCSV=ag=>['番号,英単語,意味,まちがえやすさ,まちがえた人数,答えた人数,まちがい回数,4択で正解,出題回数,まちがえた生徒',...ag.map(a=>[a.w[2],a.w[0],meanings(a.w),pct(a.rate),a.ppl,a.who,a.m,a.c,a.t,a.names.join('・')].map(String).map(csvCell).join(','))].join('\n');
+$('#hAggDl').addEventListener('click',e=>save(`単語別_${code}_${stamp()}.csv`,aggCSV(classAgg()),e.currentTarget));
+$('#hAggCopy').addEventListener('click',e=>copyOut(aggCSV(classAgg()),e.currentTarget));
+
+function stuRows(){return[...hostStats.values()].map(x=>{const[ty,ch,mi,mc]=x.sum,tot=ty+ch+mi;
+  const missed=Object.entries(x.st).filter(([,v])=>Array.isArray(v)&&(+v[1]||0)>0).map(([id])=>ALL.get(String(id).toUpperCase())).filter(Boolean);
+  return{n:x.n,d:x.d,ty,ch,mi,mc,tot,acc:tot?ty/tot:0,missed}}).sort((a,b)=>b.d-a.d)}
+const stuCSV=()=>['名前,ダメージ,打って正解,4択で正解,まちがい・時間切れ,出題数,打って正解した割合,最大コンボ,まちがえた単語（番号）,まちがえた単語',...stuRows().map(r=>[r.n,r.d,r.ty,r.ch,r.mi,r.tot,pct(r.acc),r.mc,r.missed.map(w=>w[2]).join(' '),r.missed.map(w=>w[0]).join(' ')].map(String).map(csvCell).join(','))].join('\n');
+function renderStu(){const rs=stuRows();$('#hStuT').hidden=!rs.length;
+  $('#hStu').innerHTML=rs.length?'<tr><td><b>名前</b></td><td><b>打って正解</b></td><td><b>4択</b></td><td><b>まちがい</b></td></tr>'+rs.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.ty}（${pct(r.acc)}）</td><td>${r.ch}</td><td>${r.mi}</td></tr>`).join(''):''}
+$('#hStuDl').addEventListener('click',e=>save(`生徒別_${code}_${stamp()}.csv`,stuCSV(),e.currentTarget));
+$('#hStuCopy').addEventListener('click',e=>copyOut(stuCSV(),e.currentTarget));
+$('#hAggUse').addEventListener('click',e=>{const ag=classAgg().filter(a=>a.m+a.c>0);if(!ag.length)return;setCustom(ag.map(a=>{const w=[a.w[0],a.w[1],a.w[2]];w.wt=1+Math.round(a.rate*3);return w}),'まちがえやすかった');hostCfg();const b=e.currentTarget;b.textContent=`${ag.length}語をセットしました`;setTimeout(()=>b.textContent='次回の単語セットにする',2000)});
+
+$('#rRetry').addEventListener('click',()=>{setCustom(G.rev.map(x=>x.w),'まちがえた');if(grp){show('lobby');leaveRoom();return}startGame(soloCfg())});
+
+(async()=>{
+  try{dl=window.claude&&await window.claude.use('downloads')}catch(e){dl=null}
+  $('#rDl').hidden=$('#listDl').hidden=$('#hAggDl').hidden=$('#hStuDl').hidden=!dl;
+})();
+(async()=>{
+  try{roomNS=window.claude&&await window.claude.use('room')}catch(e){roomNS=null}
+  $('#hostBtn').disabled=!roomNS;canJoin();
+  $('#roomNote').textContent=roomNS?'先生が部屋をつくり、表示されたコードを生徒が入力して参加します。':'このページではクラス機能が使えません。「ひとりで挑む」は使えます。';
+})();
+}
+</script>
+</body>
+</html>
