@@ -13,6 +13,7 @@
 | `net-core.js` | クラス対戦の通信（Firebase版）。claude.ai の room と同じ使い方にそろえた部品 |
 | `net-firebase.js` | Firebase に接続して `net-core.js` を index.html に渡す |
 | `database.rules.json` | Firebase Realtime Database のアクセス制御ルール |
+| `firebase.json` / `.firebaserc` | Firebase Hosting の公開設定（公開するファイル、セキュリティ用ヘッダー）とプロジェクト指定 |
 | `analytics.js` | アクセス解析（GA4）。送る項目を限定 |
 | `privacy.html` | プライバシーと外部送信の公表ページ、計測の停止 |
 | `sample_words.csv` | 単語CSVの見本 |
@@ -86,7 +87,15 @@ Firebase 版のデータ構造：
 4. プロジェクトの設定 → ウェブアプリを追加 → 表示される設定値を `site-config.js` の `firebase` に入れる（`databaseURL` も必要）
 5. Google Analytics 4 を使う場合は、測定ID（G-…）を `site-config.js` の `gaId` に入れる
 6. `privacy.html` の運営者名・連絡先を確認（記入済み）
-7. GitHub の Settings → Pages で公開（Branch: `main`）
+7. 公開先を選ぶ
+   - **GitHub Pages**：Settings → Pages で公開（Branch: `main`）
+   - **Firebase Hosting**：`firebase.json` と `.firebaserc`（プロジェクト `tango-raid`）を同梱。リポジトリのフォルダで次を実行
+     ```bash
+     npx -y firebase-tools@latest login
+     npx -y firebase-tools@latest deploy --only hosting,database
+     ```
+     公開URL：`https://<プロジェクトID>.web.app`（このドメインは Firebase 認証の承認済みドメインに自動で入る）
+   - Webアプリの設定値は `npx -y firebase-tools@latest apps:sdkconfig WEB <アプリID>` で表示できる
 
 設定が空のままでも、ひとりモードとCSV保存は動きます。
 
