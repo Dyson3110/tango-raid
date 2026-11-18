@@ -85,7 +85,7 @@ Firebase 版のデータ構造：
 3. 「Realtime Database」を作成（ロケーションは近い地域）し、「ルール」に `database.rules.json` の中身を貼り付けて公開
 4. プロジェクトの設定 → ウェブアプリを追加 → 表示される設定値を `site-config.js` の `firebase` に入れる（`databaseURL` も必要）
 5. Google Analytics 4 を使う場合は、測定ID（G-…）を `site-config.js` の `gaId` に入れる
-6. `privacy.html` の運営者名・連絡先を記入
+6. `privacy.html` の運営者名・連絡先を確認（記入済み）
 7. GitHub の Settings → Pages で公開（Branch: `main`）
 
 設定が空のままでも、ひとりモードとCSV保存は動きます。
